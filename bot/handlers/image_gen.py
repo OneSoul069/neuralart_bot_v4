@@ -56,7 +56,11 @@ async def start_generation(callback: CallbackQuery, state: FSMContext, db: Datab
 @router.message(ImageGenStates.waiting_prompt)
 async def process_prompt(message: Message, state: FSMContext, db: Database, img_gen: ImageGenerator):
     """Process image generation prompt."""
-    prompt = message.text.strip()
+    prompt = (message.text or "").strip()
+    if not prompt:
+        await message.answer("❌ Отправьте текстовое описание изображения.")
+        return
+
     if len(prompt) < 3:
         await message.answer("❌ Опишите запрос подробнее (минимум 3 символа).")
         return

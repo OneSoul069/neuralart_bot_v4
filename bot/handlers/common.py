@@ -4,9 +4,8 @@ import asyncio
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
-from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart
 from bot.database import Database
 from bot.keyboards import main_menu_kb, back_to_menu_kb, auth_start_kb
 from bot.states import AccountAuthStates
@@ -192,92 +191,3 @@ async def show_premium(callback: CallbackQuery, db: Database):
         await callback.message.answer(text, reply_markup=auth_start_kb(), parse_mode="HTML")
 
     await callback.answer()
-
-
-
-
-
-from bot.services.psychologist import PsychologistAPI
-from bot.states import PsychologistStates
-
-# В __main__.py добавь в inject_deps:
-# data["psych_api"] = psych_api
-
-
-@router.callback_query(F.data == "psychologist")
-async def start_psychologist(callback: CallbackQuery, state: FSMContext, db: Database):
-    user = db.get_or_create_user(tg_id=callback.from_user.id)
-    
-    if not user["is_verified"]:
-        await callback.message.answer(
-            "🔐 <b>Требуется регистрация</b>\n\nДля доступа к психологу необходимо зарегестрировать аккаунт.",
-            reply_markup=auth_start_kb(),
-            parse_mode="HTML"
-        )
-        await callback.answer()
-        return
-
-    await state.set_state(PsychologistStates.in_session)
-    
-    # Приветствие от психолога
-    welcome = (
-        "🧠 <b>Добро пожаловать в приватную сессию</b>\n\n"
-        "Я — ваш личный психолог. Всё, что вы здесь напишете, остаётся конфиденциальным.\n\n"
-        "С чего бы вы хотели начать сегодня?"
-    )
-    
-    await callback.message.answer(welcome, parse_mode="HTML")
-    await callback.answer()
-
-
-@router.message(PsychologistStates.in_session)
-async def psych_chat(message: Message, state: FSMContext, db: Database, psych_api: PsychologistAPI):
-    user_text = message.text.strip()
-    
-    if not user_text:
-        await message.answer("🧠 Я слушаю. Напишите, что вас беспокоит.")
-        return
-    
-    # Сохраняем сообщение пользователя
-    db.save_psych_message(message.from_user.id, user_text, "user")
-    
-    status_msg = await message.answer("🧠 Думаю...")
-    
-    try:
-        # Получаем историю
-        history = db.get_psych_history(message.from_user.id, limit=10)
-        
-        # Добавляем текущее сообщение
-        history.append({"role": "user", "content": user_text})
-        
-        # Отправляем в API
-        response = await psych_api.chat(history)
-        
-        # Сохраняем ответ
-        db.save_psych_message(message.from_user.id, response, "assistant")
-        
-        await status_msg.delete()
-        await message.answer(f"🧠 {response}")
-        
-    except Exception as e:
-        await status_msg.delete()
-        await message.answer(
-            "❌ Не удалось получить ответ. Попробуйте позже.\n\n"
-            "Или напишите <b>/стоп</b> чтобы выйти.",
-            parse_mode="HTML"
-        )
-        print(f"[!] Psych API error: {e}")
-
-
-@router.message(Command("стоп"))
-async def stop_psychologist(message: Message, state: FSMContext, db: Database):
-    current_state = await state.get_state()
-    if current_state == PsychologistStates.in_session:
-        db.clear_psych_history(message.from_user.id)
-        await state.clear()
-        await message.answer(
-            "🧠 Сессия завершена. История очищена.\n\n"
-            "Если захотите поговорить снова — нажмите <b>🧠 Психолог</b> в меню.",
-            reply_markup=main_menu_kb(),
-            parse_mode="HTML"
-        )
