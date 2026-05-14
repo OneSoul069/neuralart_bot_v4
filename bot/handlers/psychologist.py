@@ -68,6 +68,45 @@ async def split_and_send(message: Message, text: str):
         if i < len(parts) - 1:
             await asyncio.sleep(0.3)
 
+async def safe_delete(message: Message):
+    try:
+        await message.delete()
+    except Exception as exc:
+        logger.warning(f"Could not delete status message: {exc}")
+
+async def answer_psychologist(message: Message, db: Database, psych_api):
+    user_id = message.from_user.id
+    user_text = (message.text or "").strip()
+
+    if not user_text:
+        await message.answer(
+            "Напиши сообщение текстом или нажми «🏠 Главное меню», чтобы завершить сессию.",
+            reply_markup=psych_menu_kb()
+        )
+        return
+
+    db.save_psych_message(user_id, user_text, "user")
+    history = db.get_psych_history(user_id, limit=20)
+    status_msg = await message.answer("🧠 Думаю...", reply_markup=psych_menu_kb())
+
+    try:
+        if psych_api is None:
+            raise Exception("Psychologist API не инициализирован")
+
+        response = await psych_api.chat(history)
+        db.save_psych_message(user_id, response, "assistant")
+
+        await safe_delete(status_msg)
+        await split_and_send(message, response)
+
+    except Exception as e:
+        await safe_delete(status_msg)
+        logger.error(f"Psychologist API error: {e}", exc_info=True)
+        await message.answer(
+            "⚠️ Произошла техническая ошибка. Попробуй написать ещё раз или нажми «🏠 Главное меню».",
+            reply_markup=psych_menu_kb()
+        )
+
 
 @router.callback_query(F.data == "psychologist")
 async def start_psychologist(callback: CallbackQuery, state: FSMContext, db: Database, psych_api):
@@ -102,6 +141,7 @@ async def start_psychologist(callback: CallbackQuery, state: FSMContext, db: Dat
 @router.message(PsychologistStates.in_session, F.text.in_({"🏠 Главное меню", "◀️ Назад"}))
 async def exit_psychologist(message: Message, state: FSMContext, db: Database):
     await state.clear()
+    db.clear_psych_history(message.from_user.id)
 
     await message.answer(
         "Сессия с психологом завершена.",
@@ -116,31 +156,26 @@ async def exit_psychologist(message: Message, state: FSMContext, db: Database):
 
 @router.message(PsychologistStates.in_session)
 async def handle_psych_message(message: Message, state: FSMContext, db: Database, psych_api):
-    user_id = message.from_user.id
-    user_text = (message.text or "").strip()
+    await answer_psychologist(message, db, psych_api)
 
-    if not user_text:
-        await message.answer(
-            "Напиши сообщение текстом или нажми «🏠 Главное меню», чтобы завершить сессию.",
-            reply_markup=psych_menu_kb()
-        )
+
+@router.message(F.text == "🏠 Главное меню")
+async def exit_psychologist_without_state(message: Message, state: FSMContext, db: Database):
+    await exit_psychologist(message, state, db)
+
+
+@router.message(F.text)
+async def resume_psychologist_after_restart(message: Message, state: FSMContext, db: Database, psych_api):
+    if message.text.startswith("/"):
         return
 
-    db.save_psych_message(user_id, user_text, "user")
-    history = db.get_psych_history(user_id, limit=20)
+    user = db.get_or_create_user(tg_id=message.from_user.id)
+    if not user["is_verified"]:
+        return
 
-    try:
-        if psych_api is None:
-            raise Exception("Psychologist API не инициализирован")
+    history = db.get_psych_history(message.from_user.id, limit=1)
+    if not history:
+        return
 
-        response = await psych_api.chat(history)
-        db.save_psych_message(user_id, response, "assistant")
-
-        await split_and_send(message, response)
-
-    except Exception as e:
-        logger.error(f"Psychologist API error: {e}", exc_info=True)
-        await message.answer(
-            "⚠️ Произошла техническая ошибка. Попробуй написать ещё раз или нажми «🏠 Главное меню».",
-            reply_markup=psych_menu_kb()
-        )
+    await state.set_state(PsychologistStates.in_session)
+    await answer_psychologist(message, db, psych_api)
