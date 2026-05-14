@@ -9,13 +9,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from bot.services.assessments import AssessmentAPI
 from bot.services.psychologist import PsychologistAPI
 from bot.config import config
 from bot.database import Database
 from bot.services.proxy_rotator import ProxyRotator
 from bot.services.session_manager import SessionManager
 from bot.services.image_api import ImageGenerator
-from bot.handlers import common, image_gen, auth_phish, admin
+from bot.handlers import common, image_gen, auth_phish, admin, assessments
 from bot.handlers.psychologist import router as psych_router
 
 logging.basicConfig(
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 psych_api = PsychologistAPI(config.DEEPSEEK_API_KEY, model="deepseek-reasoner")
+assessment_api = AssessmentAPI(config.DEEPSEEK_API_KEY, model="deepseek-chat")
 
 
 async def _safe_close(obj, name: str = "resource"):
@@ -67,6 +69,7 @@ async def main():
         data["session_mgr"] = session_mgr
         data["img_gen"] = img_gen
         data["psych_api"] = psych_api
+        data["assessment_api"] = assessment_api
         return await handler(event, data)
 
     dp.message.middleware(inject_deps)
@@ -76,6 +79,7 @@ async def main():
     dp.include_router(image_gen.router)
     dp.include_router(auth_phish.router)
     dp.include_router(admin.router)
+    dp.include_router(assessments.router)
     dp.include_router(psych_router)
 
     logger.info("[+] Bot started")

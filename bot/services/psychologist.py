@@ -1,7 +1,6 @@
 """AI Psychologist service."""
 
 import aiohttp
-import json
 from typing import List, Dict
 
 class PsychologistAPI:
@@ -20,11 +19,7 @@ class PsychologistAPI:
 - Принятие и ответственность (ACT)
 - Элементы mindfulness и работы с телом
 
-**Важно:** Используй HTML-форматирование для Telegram:
-- <b>жирный текст</b>
-- <i>курсив</i>
-- <u>подчёркнутый</u>
-- <code>код</code>
+**Важно:** Не используй Markdown-разметку вроде **жирный**. Если нужно выделить заголовок или важную фразу, просто пиши текст без Markdown — бот сам отформатирует ответ для Telegram.
 
 **Правила твоего поведения:**
 
@@ -54,7 +49,7 @@ class PsychologistAPI:
             "model": self.model,
             "messages": [{"role": "system", "content": self.system_prompt}] + messages,
             "temperature": 0.7,
-            "max_tokens": 500,
+            "max_tokens": 1200,
         }
         
         headers = {
