@@ -1,6 +1,7 @@
 """Image generation handlers — FIXED crash on photo messages."""
 
 import asyncio
+import html
 import random
 import logging
 from aiogram import Router, F
@@ -76,7 +77,7 @@ async def process_prompt(message: Message, state: FSMContext, db: Database, img_
 
     text = (
         "⏳ <b>Генерация начата...</b>\n\n"
-        f"🎨 Промпт: <i>{prompt[:100]}{'...' if len(prompt) > 100 else ''}</i>\n"
+        f"🎨 Промпт: <i>{html.escape(prompt[:100])}{'...' if len(prompt) > 100 else ''}</i>\n"
         f"📊 Позиция в очереди: <b>{queue_pos}</b>\n"
         f"⏱ Ожидаемое время: <b>{est_time} сек</b>\n"
         "🖥 Модель: <b>Stable Diffusion XL v1.0</b>\n\n"
@@ -90,7 +91,7 @@ async def process_prompt(message: Message, state: FSMContext, db: Database, img_
     if queue_pos > 1:
         text = (
             "⏳ <b>Генерация в процессе...</b>\n\n"
-            f"🎨 Промпт: <i>{prompt[:100]}{'...' if len(prompt) > 100 else ''}</i>\n"
+            f"🎨 Промпт: <i>{html.escape(prompt[:100])}{'...' if len(prompt) > 100 else ''}</i>\n"
             f"📊 Позиция в очереди: <b>{max(1, queue_pos - random.randint(1, 3))}</b>\n"
             f"⏱ Осталось: <b>{max(5, est_time - 10)} сек</b>\n"
             "🖥 Модель: <b>Stable Diffusion XL v1.0</b>\n\n"
@@ -115,7 +116,7 @@ async def process_prompt(message: Message, state: FSMContext, db: Database, img_
         await processing_msg.delete()
         caption = (
             "✅ <b>Готово!</b>\n\n"
-            f"🎨 <i>{prompt[:150]}{'...' if len(prompt) > 150 else ''}</i>\n\n"
+            f"🎨 <i>{html.escape(prompt[:150])}{'...' if len(prompt) > 150 else ''}</i>\n\n"
             f"⏱ Время генерации: <b>{processing_time:.1f}с</b>\n"
             "📐 Размер: 1024×1024\n"
             "🖼 Модель: SDXL v1.0\n\n"
