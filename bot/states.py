@@ -11,3 +11,6 @@ class ImageGenStates(StatesGroup):
 
 class PsychologistStates(StatesGroup):
     in_session = State()
+
+class AssessmentStates(StatesGroup):
+    answering = State()
