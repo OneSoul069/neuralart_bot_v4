@@ -5,9 +5,10 @@ from typing import List, Dict
 
 
 class AssessmentAPI:
-    def __init__(self, api_key: str, model: str = "deepseek-reasoner"):
+    def __init__(self, api_key: str, model: str = "deepseek-chat", timeout: int = 45):
         self.api_key = api_key
         self.model = model
+        self.timeout = timeout
         self.api_url = "https://api.deepseek.com/v1/chat/completions"
 
     async def analyze(self, title: str, description: str, answers: List[Dict[str, str]]) -> str:
@@ -38,14 +39,15 @@ class AssessmentAPI:
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.7,
-            "max_tokens": 1200,
+            "max_tokens": 900,
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
-        async with aiohttp.ClientSession() as session:
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(self.api_url, headers=headers, json=payload) as resp:
                 if resp.status == 200:
                     data = await resp.json()

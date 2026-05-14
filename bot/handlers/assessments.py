@@ -99,7 +99,7 @@ async def start_assessment(callback: CallbackQuery, state: FSMContext, db: Datab
     intro = (
         f"<b>{assessment.title}</b>\n\n"
         f"{assessment.description}\n\n"
-        "Ответь на несколько вопросов своими словами. В конце я соберу результат через DeepSeek."
+        "Ответь на несколько вопросов своими словами. В конце я соберу результат."
     )
     await callback.message.answer(intro, reply_markup=back_to_menu_kb(), parse_mode="HTML")
     await send_question(callback.message, state)
@@ -129,7 +129,7 @@ async def process_assessment_answer(message: Message, state: FSMContext, db: Dat
         return
 
     await state.clear()
-    status_msg = await message.answer("🔎 Анализирую ответы через DeepSeek...")
+    status_msg = await message.answer("🔎 Анализирую ответы...")
 
     try:
         result = await assessment_api.analyze(assessment.title, assessment.description, answers)

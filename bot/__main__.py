@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 psych_api = PsychologistAPI(config.DEEPSEEK_API_KEY, model="deepseek-reasoner")
-assessment_api = AssessmentAPI(config.DEEPSEEK_API_KEY, model="deepseek-reasoner")
+assessment_api = AssessmentAPI(config.DEEPSEEK_API_KEY, model="deepseek-chat")
 
 
 async def _safe_close(obj, name: str = "resource"):
